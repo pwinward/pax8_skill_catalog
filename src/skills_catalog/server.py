@@ -7,7 +7,7 @@ to call, so they state the result contract rather than just naming the operation
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from .models import FileMap, PublishResult, SkillBundle
+from .models import FileMap, PublishResult, SkillBundle, SkillRef
 from .service import CatalogService
 
 READ_ONLY = ToolAnnotations(read_only_hint=True)
@@ -55,5 +55,20 @@ def build_server(service: CatalogService) -> MCPServer:
     )
     def retrieve_skill(name: str, version: int | None = None) -> SkillBundle:
         return service.retrieve(name, version)
+
+    @server.tool(
+        name="discover_skills",
+        description=(
+            "Search the shared catalog for skills matching a described need.\n\n"
+            "Pass the developer's need as a query in plain words. Returns a list of "
+            "matching skills with name, description and latest version — enough to "
+            "choose one, which retrieve_skill then fetches in full.\n\n"
+            "An empty list means no published skill matches. Say so plainly; do not "
+            "offer a skill that is not in the results or suggest one might exist."
+        ),
+        annotations=READ_ONLY,
+    )
+    def discover_skills(query: str, limit: int | None = None) -> list[SkillRef]:
+        return service.discover(query, limit)
 
     return server

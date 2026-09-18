@@ -1,8 +1,9 @@
 """Catalog behaviour. Knows nothing about MCP, HTTP, or how it was called."""
 
 from .hashing import bundle_hash
-from .models import FileMap, PublishResult, SkillBundle
+from .models import FileMap, PublishResult, SkillBundle, SkillRef
 from .repository import IntegrityFailure, SkillNotFound, SqliteRepository
+from .search import clamp_limit, to_match_expression
 from .validation import ValidationError, validate_publish
 
 
@@ -61,3 +62,16 @@ class CatalogService:
         return SkillBundle(
             found=True, name=name, version=resolved, content_hash=recomputed, files=files
         )
+
+    def discover(self, query: str, limit: int | None = None) -> list[SkillRef]:
+        """Find published skills matching a described need.
+
+        Results are deliberately thin — name, description, latest version — because
+        they land in the assistant's context on every search. Instruction bodies would
+        crowd out the conversation they are meant to serve; retrieval is where the
+        full bundle is paid for (requirement 2.3).
+        """
+        expression = to_match_expression(query)
+        if expression is None:
+            return []
+        return self.repository.search(expression, clamp_limit(limit))
