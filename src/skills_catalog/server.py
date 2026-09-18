@@ -4,6 +4,8 @@ Tool descriptions are prompt text — they are what a model reads when deciding 
 to call, so they state the result contract rather than just naming the operation.
 """
 
+from importlib.metadata import PackageNotFoundError, version as package_version
+
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
@@ -16,8 +18,14 @@ WRITES = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempoten
 
 
 def build_server(service: CatalogService) -> MCPServer:
+    try:
+        release = package_version("skills-catalog")
+    except PackageNotFoundError:  # running from a source tree without an install
+        release = "0.0.0+source"
+
     server = MCPServer(
         name="skills-catalog",
+        version=release,
         instructions=(
             "A shared catalog of reusable AI-assistant skills. Publish a skill once and "
             "any other developer's assistant can discover and retrieve it."

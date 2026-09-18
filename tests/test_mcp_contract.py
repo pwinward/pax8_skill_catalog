@@ -126,3 +126,18 @@ def test_a_bundle_survives_the_json_boundary(server):
         return await client.call_tool("retrieve_skill", {"name": "contract-check"})
 
     assert run(server, exercise).structured_content["files"] == files
+
+
+def test_the_server_identifies_itself(server):
+    """serverInfo is what a client shows a user when listing connected servers.
+
+    An empty version reads as a broken install, and it is what a bug report would
+    quote back.
+    """
+    async def read_info(client):
+        return client.server_info
+
+    identity = run(server, read_info)
+
+    assert identity.name == "skills-catalog"
+    assert identity.version, "server reports no version"
