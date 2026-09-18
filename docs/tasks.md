@@ -56,7 +56,7 @@ Requirement IDs refer to `requirements.md`.
 | T-18 | Per-call duration logging to stdout | 6.1 |
 | T-19 | Two-client integration test, plus `DEMO.md` captured from a real two-session run | 1.6, 5.1 |
 | T-20 | README: quickstart, tool list, known limits, measured latency, AI-usage note | 6.1, 7.1 |
-| T-21 | `decisions.md`, `phase-2.md`, `production.md` | PRD §12 Q1 |
+| T-21 | `decisions.md`, `phase-2.md` | PRD §12 Q1 |
 
 **Checkpoint 5** — submittable.
 

@@ -93,8 +93,7 @@ duration and the figures are reported rather than asserted in a flaky timing tes
 - **Text only.** File contents must be UTF-8; binaries are rejected at publish rather
   than stored in a form retrieval could not return unchanged.
 - **Publishing costs tokens proportional to skill size**, since the bundle travels as
-  tool arguments. Fine for text skills, wrong for large ones — `docs/production.md`
-  covers the upload endpoint that replaces it.
+  tool arguments. Fine for text skills, wrong for large ones.
 - **Executable bits and symlinks do not survive** the path-to-content map.
 - **Search is lexical.** A skill described as "release notes" will not match a query
   for "changelog". Semantic search is the top-ranked Phase 2 item.
@@ -112,7 +111,6 @@ duration and the figures are reported rather than asserted in a flaky timing tes
 | `docs/tasks.md` | The build plan, each task mapped to requirements |
 | `docs/decisions.md` | Decision log in the PRD's own format, including rejected options |
 | `docs/phase-2.md` | Answer to PRD §12's Q1 — what is worth building next |
-| `docs/production.md` | What changes to run this on AWS |
 | `DEMO.md` | Transcript of two developers sharing one catalog |
 
 ## On AI use

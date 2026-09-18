@@ -115,4 +115,4 @@ Recorded, not built. Rationale for each is in `decisions.md`.
 1. Every acceptance criterion in Requirements 1 through 4 has a passing test.
 2. Requirement 5 is evidenced by a `DEMO.md` transcript from two client sessions against one catalog.
 3. The README quickstart has been run from a clean clone.
-4. `decisions.md`, `phase-2.md` and `production.md` exist.
+4. `decisions.md` and `phase-2.md` exist.

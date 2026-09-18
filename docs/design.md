@@ -228,10 +228,10 @@ Cross-platform by construction: `pathlib` throughout, no hardcoded system paths,
 
 ## 8. Deliberately not built
 
-Authentication (PRD §8), de-duplication (PRD §8), semantic search, delete or deprecate, a web UI, and any deployed infrastructure. `production.md` covers what would change on AWS; `decisions.md` records the options considered and rejected.
+Authentication (PRD §8), de-duplication (PRD §8), semantic search, delete or deprecate, a web UI, and any deployed infrastructure. `decisions.md` records the options considered and rejected.
 
 ## 9. Known risks
 
 - **Name collisions.** Identity is the skill name and there is no auth, so two developers can unknowingly version each other's skill. Inherent to FR-04 plus PRD §8; namespacing is a Phase 2 item.
-- **SQLite as the single writer.** Correct and fast for this scale, and the wrong choice past one node — which is exactly the boundary `production.md` addresses.
+- **SQLite as the single writer.** Correct and fast for this scale, and the wrong choice past one node.
 - **Lexical search misses synonyms.** A skill described as "release notes" will not match a query for "changelog." Accepted for Phase 1 and the top-ranked Phase 2 item.
