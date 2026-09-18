@@ -114,7 +114,7 @@ src/skills_catalog/
   search.py      SearchIndex protocol; Fts5Index, plus query sanitizing
                  (LikeIndex fallback is optional — T-22, only if time remains)
   service.py     CatalogService: publish, discover, retrieve, list_versions
-  server.py      FastMCP tool definitions (thin) plus per-call duration logging
+  server.py      MCPServer tool definitions (thin) plus per-call duration logging
   cli.py         serve, seed
 ```
 
@@ -220,7 +220,7 @@ Stdout rather than a table in the catalog: telemetry should not live inside the 
 
 ## 7. Runtime and packaging
 
-Python with the official `mcp` SDK, streamable HTTP transport, stdlib `sqlite3`, `pytest` for tests. Two direct dependencies.
+Python with the official `mcp` SDK (2.x, where the server class is `MCPServer` — `FastMCP` in 1.x), streamable HTTP transport on `/mcp`, stdlib `sqlite3`, `pytest` for tests. Two direct dependencies.
 
 Managed with `uv`, which installs its own pinned Python. The reviewer's OS and Python version are unknown, so the toolchain is pinned rather than assumed; a `venv` and `pip` path is documented for anyone already on 3.10+. No Docker: the service is one process and one file, so a container would add a volume-mounting failure mode to the very requirement (PRD §9) it would be meant to serve.
 
