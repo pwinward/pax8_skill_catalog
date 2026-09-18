@@ -108,13 +108,15 @@ Tool descriptions are prompt text — they are what the model reads when decidin
 ```
 src/skills_catalog/
   models.py      Pydantic types: SkillRef, SkillBundle, VersionInfo, PublishResult
+  errors.py      IntegrityFailure, SkillNotFound — faults, not domain outcomes
   validation.py  validate_publish() -> raises ValidationError(field, message)
   hashing.py     file_sha256(), bundle_hash()
   repository.py  SqliteRepository: schema init, transaction boundary, queries
   search.py      SearchIndex protocol; Fts5Index, plus query sanitizing
                  (LikeIndex fallback is optional — T-22, only if time remains)
   service.py     CatalogService: publish, discover, retrieve, list_versions
-  server.py      MCPServer tool definitions (thin) plus per-call duration logging
+  observability.py  Per-call duration logging
+  server.py      MCPServer tool definitions (thin)
   cli.py         serve, seed
 ```
 

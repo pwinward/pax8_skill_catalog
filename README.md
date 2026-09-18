@@ -71,7 +71,7 @@ dependencies.
 uv run pytest
 ```
 
-49 tests. `docs/requirements.md` maps every PRD acceptance criterion to the test that
+58 tests. `docs/requirements.md` maps every PRD acceptance criterion to the test that
 proves it. Notable ones:
 
 - **Round-trip fidelity** against content designed to break naive handling: CRLF line

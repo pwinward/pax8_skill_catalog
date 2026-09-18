@@ -9,7 +9,13 @@ def file_sha256(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def bundle_hash(files: FileMap) -> str:
+def file_hashes(files: FileMap) -> dict[str, str]:
+    """Hash every file once. Both the bundle hash and the stored per-file hashes
+    come from this, so the two can never disagree about what a file contained."""
+    return {path: file_sha256(content) for path, content in files.items()}
+
+
+def bundle_hash(hashes: dict[str, str]) -> str:
     """Hash the sorted (path, file hash) pairs.
 
     Paths are part of the hash because a skill's instructions refer to its files by
@@ -18,9 +24,9 @@ def bundle_hash(files: FileMap) -> str:
     this covers everything the author sent, with no separate metadata to keep in step.
     """
     digest = hashlib.sha256()
-    for path in sorted(files):
+    for path in sorted(hashes):
         digest.update(path.encode("utf-8"))
         digest.update(b"\0")
-        digest.update(file_sha256(files[path]).encode("ascii"))
+        digest.update(hashes[path].encode("ascii"))
         digest.update(b"\n")
     return digest.hexdigest()

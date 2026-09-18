@@ -1,10 +1,15 @@
 """Catalog behaviour. Knows nothing about MCP, HTTP, or how it was called."""
 
-from .hashing import bundle_hash
+from .errors import IntegrityFailure, SkillNotFound
+from .hashing import bundle_hash, file_hashes
 from .models import FileMap, PublishResult, SkillBundle, SkillRef, VersionHistory
-from .repository import IntegrityFailure, SkillNotFound, SqliteRepository
+from .repository import SqliteRepository
 from .search import clamp_limit, to_match_expression
 from .validation import ValidationError, validate_publish
+
+
+def _no_such_skill(name: str) -> str:
+    return f"No skill named '{name}'."
 
 
 class CatalogService:
@@ -19,8 +24,11 @@ class CatalogService:
             # the result carries no version number so nothing here reads as success.
             return PublishResult(published=False, field=error.field, message=error.message)
 
-        content_hash = bundle_hash(files)
-        version = self.repository.insert_version(manifest, files, content_hash, publisher)
+        hashes = file_hashes(files)
+        content_hash = bundle_hash(hashes)
+        version = self.repository.insert_version(
+            manifest, files, hashes, content_hash, publisher
+        )
         return PublishResult(
             published=True,
             name=manifest.name,
@@ -30,38 +38,42 @@ class CatalogService:
         )
 
     def retrieve(self, name: str, version: int | None = None) -> SkillBundle:
-        resolved = version if version is not None else self.repository.latest_version(name)
-        if resolved is None:
-            return SkillBundle(found=False, name=name, message=f"No skill named '{name}'.")
+        resolved = self._resolve_version(name, version)
+        if isinstance(resolved, str):
+            return SkillBundle(found=False, name=name, message=resolved)
 
-        try:
-            _, files = self.repository.get_version(name, resolved)
-        except SkillNotFound:
-            # An unknown version of a known skill is a different answer from an
-            # unknown skill, and saying so stops the caller guessing (requirement 3.4).
-            if self.repository.skill_exists(name):
-                latest = self.repository.latest_version(name)
-                return SkillBundle(
-                    found=False,
-                    name=name,
-                    message=f"Skill '{name}' has no version {resolved}. Latest is {latest}.",
-                )
-            return SkillBundle(found=False, name=name, message=f"No skill named '{name}'.")
+        meta, files = self.repository.get_version(name, resolved)
 
-        # The per-file hashes were checked on the way out of the repository; this
-        # checks the bundle as a whole, so a missing or renamed file is caught too.
-        # A mismatch is corruption, not a domain outcome: it raises rather than
-        # returning content already known to be wrong (PRD §7).
-        row = self.repository.version_meta(name, resolved)
-        recomputed = bundle_hash(files)
-        if recomputed != row["content_hash"]:
+        # The repository verified each file against its own stored hash. This checks
+        # the bundle as a whole, so a file that went missing or was renamed is caught
+        # too. A mismatch is corruption, not a domain outcome: it raises rather than
+        # returning content already known to differ from what was published (PRD §7).
+        recomputed = bundle_hash(file_hashes(files))
+        if recomputed != meta.content_hash:
             raise IntegrityFailure(
                 f"{name} v{resolved}: bundle hash {recomputed} does not match "
-                f"the hash recorded at publish ({row['content_hash']})"
+                f"the hash recorded at publish ({meta.content_hash})"
             )
+
         return SkillBundle(
             found=True, name=name, version=resolved, content_hash=recomputed, files=files
         )
+
+    def _resolve_version(self, name: str, requested: int | None) -> int | str:
+        """Which version to serve, or the reason there is none.
+
+        Returns a version number, or a message explaining why not. An unknown version
+        of a known skill reads differently from an unknown skill, so that an assistant
+        relaying the answer says which is true (requirement 3.4).
+        """
+        latest = self.repository.latest_version(name)
+        if latest is None:
+            return _no_such_skill(name)
+        if requested is None:
+            return latest
+        if not 1 <= requested <= latest:
+            return f"Skill '{name}' has no version {requested}. Latest is {latest}."
+        return requested
 
     def discover(self, query: str, limit: int | None = None) -> list[SkillRef]:
         """Find published skills matching a described need.
@@ -87,5 +99,5 @@ class CatalogService:
         try:
             versions = self.repository.list_versions(name)
         except SkillNotFound:
-            return VersionHistory(found=False, name=name, message=f"No skill named '{name}'.")
+            return VersionHistory(found=False, name=name, message=_no_such_skill(name))
         return VersionHistory(found=True, name=name, versions=versions)

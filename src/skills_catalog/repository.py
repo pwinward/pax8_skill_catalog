@@ -6,8 +6,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
+from .errors import IntegrityFailure, SkillNotFound
 from .hashing import file_sha256
-from .models import FileMap, Manifest, SkillRef, VersionInfo
+from .models import FileMap, Manifest, SkillRef, VersionInfo, VersionMeta
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS skills (
@@ -43,19 +44,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-class SkillNotFound(Exception):
-    """Raised by the repository; the service turns it into a found: false result."""
-
-
-class IntegrityFailure(Exception):
-    """Stored bytes do not match their recorded hash. Corruption, never a domain outcome."""
-
-
 class SqliteRepository:
     def __init__(self, db_path: Path | str) -> None:
         self.db_path = Path(db_path)
-        if self.db_path.parent != Path(""):
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.init_schema()
 
     @contextmanager
@@ -81,7 +73,12 @@ class SqliteRepository:
             conn.executescript(SCHEMA)
 
     def insert_version(
-        self, manifest: Manifest, files: FileMap, content_hash: str, publisher: str | None
+        self,
+        manifest: Manifest,
+        files: FileMap,
+        file_hashes: dict[str, str],
+        content_hash: str,
+        publisher: str | None,
     ) -> int:
         """Write a new version. One transaction covering every row and the search index.
 
@@ -113,7 +110,7 @@ class SqliteRepository:
                     "INSERT INTO version_files (skill_name, version, path, content, sha256)"
                     " VALUES (?, ?, ?, ?, ?)",
                     [
-                        (manifest.name, version, path, content.encode("utf-8"), file_sha256(content))
+                        (manifest.name, version, path, content.encode("utf-8"), file_hashes[path])
                         for path, content in files.items()
                     ],
                 )
@@ -143,10 +140,17 @@ class SqliteRepository:
                 conn.execute("SELECT 1 FROM skills WHERE name = ?", (name,)).fetchone() is not None
             )
 
-    def get_version(self, name: str, version: int) -> tuple[dict, FileMap]:
+    def get_version(self, name: str, version: int) -> tuple[VersionMeta, FileMap]:
+        """A version's metadata and its files, read on one connection.
+
+        Both come back together because every caller needs both: the files to return
+        and the recorded hash to check them against.
+        """
         with self._connect() as conn:
             meta = conn.execute(
-                "SELECT * FROM versions WHERE skill_name = ? AND version = ?", (name, version)
+                "SELECT version, published_at, publisher, content_hash FROM versions"
+                " WHERE skill_name = ? AND version = ?",
+                (name, version),
             ).fetchone()
             if meta is None:
                 raise SkillNotFound(f"{name} version {version}")
@@ -162,16 +166,7 @@ class SqliteRepository:
             if file_sha256(content) != row["sha256"]:
                 raise IntegrityFailure(f"{name} v{version}: stored bytes for {row['path']} altered")
             files[row["path"]] = content
-        return dict(meta), files
-
-    def version_meta(self, name: str, version: int) -> dict:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM versions WHERE skill_name = ? AND version = ?", (name, version)
-            ).fetchone()
-        if row is None:
-            raise SkillNotFound(f"{name} version {version}")
-        return dict(row)
+        return VersionMeta(**dict(meta)), files
 
     def list_versions(self, name: str) -> list[VersionInfo]:
         with self._connect() as conn:

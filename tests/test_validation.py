@@ -80,3 +80,25 @@ def test_rejected_publish_is_atomic(service, tmp_path):
         for table in ("skills", "versions", "version_files", "skills_fts"):
             count = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]
             assert count == 0, f"{table} should be empty after a rejected publish"
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ('"fully quoted"', "fully quoted"),
+        ("'single quoted'", "single quoted"),
+        ('"Quoted" and then more', '"Quoted" and then more'),
+        ('ends with a quote"', 'ends with a quote"'),
+        ("Handles a colon: like this", "Handles a colon: like this"),
+        ("plain text", "plain text"),
+    ],
+)
+def test_frontmatter_quotes_strip_only_as_a_matched_pair(service, raw, expected):
+    """A description is shown in discovery results, so it must survive parsing intact.
+
+    Stripping quote characters independently from each end would eat the leading quote
+    of `"Quoted" and then more` and leave the trailing one.
+    """
+    service.publish({"SKILL.md": f"---\nname: quoting\ndescription: {raw}\n---\n\nBody.\n"})
+
+    assert service.discover("quoting")[0].description == expected

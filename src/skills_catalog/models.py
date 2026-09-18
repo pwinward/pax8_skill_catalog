@@ -42,6 +42,15 @@ class SkillRef(BaseModel):
     latest_version: int
 
 
+class VersionMeta(BaseModel):
+    """A version's stored metadata, as the repository reads it back."""
+
+    version: int
+    published_at: str
+    publisher: str | None = None
+    content_hash: str
+
+
 class VersionInfo(BaseModel):
     version: int
     published_at: str

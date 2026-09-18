@@ -7,7 +7,7 @@ to call, so they state the result contract rather than just naming the operation
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from .logging import logged
+from .observability import logged
 from .models import FileMap, PublishResult, SkillBundle, SkillRef, VersionHistory
 from .service import CatalogService
 

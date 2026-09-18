@@ -23,6 +23,18 @@ _FRONTMATTER = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*\r?\n?(.*)\Z", re
 _KEY_VALUE = re.compile(r"\A([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)\Z")
 
 
+def _unquote(value: str) -> str:
+    """Strip one matched pair of surrounding quotes, and only a matched pair.
+
+    str.strip("'\"") would take a leading quote off `"Quoted" and more` while leaving
+    the trailing one, silently altering the text an author wrote.
+    """
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+        return value[1:-1]
+    return value
+
+
 class ValidationError(Exception):
     """A publish the caller must fix. Carries the offending field so a retry is informed."""
 
@@ -58,7 +70,7 @@ def parse_manifest(text: str) -> Manifest:
                 MANIFEST_PATH,
                 f"Frontmatter line is not a 'key: value' pair: {line.strip()!r}",
             )
-        fields[kv.group(1).lower()] = kv.group(2).strip().strip("'\"")
+        fields[kv.group(1).lower()] = _unquote(kv.group(2))
 
     for key in ("name", "description"):
         if not fields.get(key, "").strip():
