@@ -45,9 +45,7 @@ version by number.
 The shape I would propose: deprecation as the default and only ordinary path, with
 removal as a distinct privileged operation that tombstones the version — the row and
 its hash stay so the history remains legible and honest, the file contents go, and
-retrieval reports the version as withdrawn rather than as never having existed. Package
-registries landed in roughly the same place: deprecate freely, unpublish narrowly, and
-never silently.
+retrieval reports the version as withdrawn rather than as never having existed.
 
 **Worth noting the PRD never mentions any of this** — not deletion, not deprecation,
 not retirement, and not in §8's list of deferred items either (`requirements.md`, gap
@@ -79,7 +77,7 @@ it. Auth establishes *who published*; it says nothing about *what the skill says
 person.
 
 **Why.** PRD §8 defers this deliberately and Phase 1 accepts the consequence
-(`decisions.md` D-13): identity is the bare skill name, so any caller may publish a new
+(`decisions.md` D-12): identity is the bare skill name, so any caller may publish a new
 version of anyone's skill, and two teams choosing the same name silently version each
 other's work. Tolerable among a handful of trusted developers; not at company scale.
 

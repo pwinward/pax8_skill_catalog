@@ -60,12 +60,12 @@ Requirement IDs refer to `requirements.md`.
 
 **Checkpoint 5** — submittable.
 
-## Step 6 — Only if time remains
+## Step 6 — After the PRD was satisfied
 
-| # | Task | Why it is last |
+| # | Task | Status |
 |---|---|---|
-| T-22 | FTS5 availability check with `LIKE` fallback | Insures against an unknown reviewer environment; not required by the PRD |
-| T-23 | GitHub Actions running the suite on Ubuntu | The only independent evidence the quickstart works off this machine |
+| T-22 | FTS5 availability check with a `LIKE` fallback | Not built. FTS5 is present in every Python build tested, including CI on three operating systems, so the fallback insured against a risk that did not materialise. |
+| T-23 | CI running the suite and the quickstart on Ubuntu, macOS and Windows | Built. The only independent evidence the quickstart works off one machine. |
 
 ## Deliberately not tasks
 

@@ -50,10 +50,11 @@ byte-identical to what was published, and writing the map to disk installs the s
 
 ## How it is built
 
-One process. The MCP server *is* the catalog, so any number of assistants connect to
-the same one — which is the point: PRD §1's problem is that skills only exist on their
-author's machine, and a catalog embedded in each developer's assistant would reproduce
-it while passing every functional requirement.
+One process, which every assistant connects to over HTTP. That is the whole design
+decision: the problem being solved is that a skill exists only on its author's machine,
+so the catalog has to be somewhere else — a place that outlives any one developer's
+session. A catalog built into each developer's assistant would pass every functional
+requirement and leave the original problem exactly where it was.
 
 ```
 MCP tools (thin)  ->  CatalogService  ->  Repository  ->  SQLite (one file)
@@ -62,8 +63,8 @@ MCP tools (thin)  ->  CatalogService  ->  Repository  ->  SQLite (one file)
 Domain logic sits below the protocol and knows nothing about MCP. Storage and search
 are behind protocols, which is where DynamoDB or OpenSearch would slot in.
 
-Python, the official `mcp` SDK, stdlib `sqlite3` with FTS5 for search. Two direct
-dependencies.
+Python, the official `mcp` SDK, and the standard library's `sqlite3` with FTS5 for
+search. One runtime dependency.
 
 ## Tests
 
@@ -71,7 +72,7 @@ dependencies.
 uv run pytest
 ```
 
-98 tests, 96% coverage. `docs/requirements.md` maps every PRD acceptance criterion to
+99 tests, 96% coverage. `docs/requirements.md` maps every PRD acceptance criterion to
 the test that proves it. Notable ones:
 
 - **Round-trip fidelity** against content designed to break naive handling: CRLF line
@@ -101,7 +102,7 @@ duration and the figures are reported rather than asserted in a flaky timing tes
   tool arguments. Fine for text skills, wrong for large ones.
 - **Executable bits and symlinks do not survive** the path-to-content map.
 - **Search is lexical.** A skill described as "release notes" will not match a query
-  for "changelog". Semantic search is the top-ranked Phase 2 item.
+  for "changelog". Richer discovery is a Phase 2 item.
 - **No authentication** (PRD §8), so the namespace is flat and any caller may publish a
   new version of any skill. The publisher field is recorded but unverified.
 - **Verified on macOS locally**; CI runs the suite and the quickstart on Ubuntu,
@@ -117,22 +118,3 @@ duration and the figures are reported rather than asserted in a flaky timing tes
 | `docs/decisions.md` | Decision log in the PRD's own format, including rejected options |
 | `docs/phase-2.md` | Answer to PRD §12's Q1 — what is worth building next |
 | `DEMO.md` | Transcript of two developers sharing one catalog |
-
-## On AI use
-
-Written with Claude Code, working from the spec in `docs/` rather than from prompts —
-the requirements, design and decision log came first and are what the implementation
-was built against.
-
-What I did not delegate: the architecture, and the reading of the PRD that drove it.
-The load-bearing judgments — that a per-developer store would satisfy every functional
-requirement while reproducing the problem the PRD exists to solve; that the manifest
-should travel as a file so round-trip fidelity is structural rather than careful; that
-a rejected publish must carry no version number — are the ones a reviewer should push
-on, and they are mine to defend.
-
-Two things AI caught that I would have missed: that raw natural language reaches FTS5
-as syntax, and that a `SKILL.md`-shaped supporting file is a real test case. Two things
-I overrode: a proposed concurrency test defending an architectural argument the PRD
-never makes, and a latency assertion that would have encoded a threshold PRD §7
-deliberately leaves open.

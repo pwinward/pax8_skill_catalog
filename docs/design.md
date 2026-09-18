@@ -1,12 +1,14 @@
 # Design — Skills Catalog
 
-Companion to `requirements.md`. Covers Phase 1 (P0) only.
+How the requirements in `requirements.md` are met. Phase 1 (P0) only.
 
-References written `PRD §n` point to the Skills Catalog PRD. A bare `§n` points to a section of this document.
+A reference written `PRD §n` points to the Skills Catalog PRD; a bare `§n` points to a section of this document.
 
 ## 1. Shape
 
-One long-running service that speaks MCP over HTTP. Any number of assistants connect to it.
+The catalog is a single long-running program. Developers do not talk to it directly — their AI assistants do, over MCP, the protocol assistants use to call external tools. An assistant connects, sees four tools it can call, and uses them on the developer's behalf when asked something like "is there a skill for writing release notes?"
+
+Any number of assistants connect to the same running catalog at once.
 
 ```
   Developer 1's assistant          Developer 2's assistant
@@ -35,7 +37,7 @@ PRD §1 states the pain precisely: "a skill lives locally, on the author's own m
 
 So the catalog is a process that outlives any assistant session and that multiple assistants reach. Locally that is one command; in production it is the same service behind a gateway. Running it locally satisfies PRD §9's self-containment without weakening the claim.
 
-The shape also buys a property the PRD never asks for. Concurrent publishing is nowhere in the requirements — the use cases are sequential — but with one service in front of the database there is exactly one writer, so the atomicity in §6.1 and the version assignment in §6.3 hold under simultaneous publishes without any locking machinery. Two assistant-local servers sharing a database file would need WAL mode and a busy timeout to get the same result. Not a requirement met; a failure mode avoided for free.
+One service in front of the database also means one writer, so two developers publishing at the same moment cannot collide. The PRD does not ask for that — its use cases are sequential — but it comes free with the shape.
 
 ## 3. Layering
 
@@ -90,16 +92,18 @@ Three points worth defending:
 
 ## 5. Tool contracts
 
-Four tools. The surface is deliberately small — every tool description is spent from the assistant's context budget on every conversation.
+Four tools, one per functional requirement. The surface is kept small on purpose: an assistant reads every tool's description in every conversation where the catalog is connected, so each one costs the developer context whether or not it is used.
 
 | Tool | Arguments | Returns | Requirements |
 |---|---|---|---|
 | `publish_skill` | `files: dict[path, content]` (must include `SKILL.md`), `publisher` (optional) | `{published, name, version, content_hash, file_count}` | 1.x, 4.1, 4.4 |
-| `discover_skills` | `query`, `limit` (default 10) | `[{name, description, latest_version}]` | 2.x |
+| `discover_skills` | `query`, `limit` (default 10, capped at 50) | `[{name, description, latest_version}]` | 2.x |
 | `retrieve_skill` | `name`, `version` (optional, defaults to latest) | `{found, name, version, content_hash, files: dict[path, content]}` | 3.x, 4.3 |
-| `list_skill_versions` | `name` | `[{version, published_at, publisher, content_hash}]` | 4.2 |
+| `list_skill_versions` | `name` | `{found, name, versions: [{version, published_at, publisher, content_hash, identical_to}]}` | 4.2 |
 
 `discover_skills`, `retrieve_skill` and `list_skill_versions` are annotated read-only; `publish_skill` is the sole writer.
+
+The returns above are what each tool produces. A tool returning a bare list is wrapped by the SDK as `{"result": [...]}` in the structured content a client receives; the others are returned as shown.
 
 Tool descriptions are prompt text — they are what the model reads when deciding whether to call. They are written as deliberately as a system prompt, and the description for `discover_skills` states that an empty result means nothing matched, so the assistant reports that rather than improvising (2.4).
 
@@ -107,22 +111,21 @@ Tool descriptions are prompt text — they are what the model reads when decidin
 
 ```
 src/skills_catalog/
-  models.py      Pydantic types: SkillRef, SkillBundle, VersionInfo, PublishResult
-  errors.py      IntegrityFailure, SkillNotFound — faults, not domain outcomes
-  validation.py  validate_publish() -> raises ValidationError(field, message)
-  hashing.py     file_sha256(), bundle_hash()
-  repository.py  SqliteRepository: schema init, transaction boundary, queries
-  search.py      SearchIndex protocol; Fts5Index, plus query sanitizing
-                 (LikeIndex fallback is optional — T-22, only if time remains)
-  service.py     CatalogService: publish, discover, retrieve, list_versions
-  observability.py  Per-call duration logging
-  server.py      MCPServer tool definitions (thin)
-  cli.py         serve, seed
+  models.py        The types that cross the service boundary, as Pydantic models
+  errors.py        IntegrityFailure and SkillNotFound — faults, not domain answers
+  validation.py    Manifest parsing and every publish check
+  hashing.py       Per-file and whole-bundle content hashes
+  repository.py    SqliteRepository — schema, transactions, queries, search
+  search.py        Turning a developer's question into an FTS5 query
+  service.py       CatalogService — publish, discover, retrieve, list_versions
+  observability.py One log line per tool call
+  server.py        The four MCP tool definitions
+  cli.py           serve and seed
 ```
 
 Sample skills live in `seed_data/` at the repository root rather than inside the package, so no package-data configuration is needed — the CLI reads them from disk.
 
-`CatalogService` is constructed with a repository and a search index, both as protocols. That is the seam: swapping SQLite for DynamoDB, or FTS5 for OpenSearch, replaces an implementation without touching the service or the tools.
+`CatalogService` is handed its repository rather than creating one, and never names SQLite. That is the seam: storage can be replaced without touching the service or the tools. Search sits behind the same boundary, because FTS5 lives in the same database — separating them would matter only when search moves to a system of its own.
 
 ## 5c. Flows
 
@@ -210,7 +213,7 @@ Three reasons for this shape:
 
 The contract is stated in each tool's description, which is prompt text the model reads before calling. Messages are written to be relayed verbatim.
 
-**What this cannot guarantee.** FR-02 and FR-03 are phrased as assistant behaviour — "the assistant clearly says so." The catalog controls its own output, not the model's phrasing. This design makes the correct behaviour the path of least resistance; it cannot make it certain. Tests therefore assert on tool output, and `DEMO.md` carries the evidence for the assistant-facing half.
+**What this cannot guarantee.** FR-02 and FR-03 are phrased as assistant behaviour — "the assistant clearly says so." The catalog controls its own output, not the model's phrasing. Tests therefore assert on tool output, and `DEMO.md` carries the evidence for the rest.
 
 ### 6.6 Observability
 
@@ -222,7 +225,9 @@ Stdout rather than a table in the catalog: telemetry should not live inside the 
 
 ## 7. Runtime and packaging
 
-Python with the official `mcp` SDK (2.x, where the server class is `MCPServer` — `FastMCP` in 1.x), streamable HTTP transport on `/mcp`, stdlib `sqlite3`, `pytest` for tests. Two direct dependencies.
+Python with the official `mcp` SDK, streamable HTTP transport on `/mcp`, and the standard library's `sqlite3`. One runtime dependency; `pytest` and `hypothesis` for tests.
+
+The SDK is pinned to 2.x, where the server class is `MCPServer` (it was `FastMCP` in 1.x).
 
 Managed with `uv`, which installs its own pinned Python. The reviewer's OS and Python version are unknown, so the toolchain is pinned rather than assumed; a `venv` and `pip` path is documented for anyone already on 3.10+. No Docker: the service is one process and one file, so a container would add a volume-mounting failure mode to the very requirement (PRD §9) it would be meant to serve.
 

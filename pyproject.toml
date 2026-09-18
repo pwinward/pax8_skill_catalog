@@ -3,7 +3,7 @@ name = "skills-catalog"
 version = "0.1.0"
 description = "A shared catalog that AI assistants publish skills to and retrieve them from"
 requires-python = ">=3.10"
-dependencies = ["mcp>=1.2.0"]
+dependencies = ["mcp>=2.0,<3"]
 
 [project.scripts]
 skills-catalog = "skills_catalog.cli:main"
