@@ -51,3 +51,10 @@ class VersionInfo(BaseModel):
         default=None,
         description="Set when this version's content hash matches an earlier version.",
     )
+
+
+class VersionHistory(BaseModel):
+    found: bool
+    name: str
+    versions: list[VersionInfo] = Field(default_factory=list)
+    message: str | None = None

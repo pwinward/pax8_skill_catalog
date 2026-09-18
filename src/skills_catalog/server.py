@@ -7,7 +7,7 @@ to call, so they state the result contract rather than just naming the operation
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
-from .models import FileMap, PublishResult, SkillBundle, SkillRef
+from .models import FileMap, PublishResult, SkillBundle, SkillRef, VersionHistory
 from .service import CatalogService
 
 READ_ONLY = ToolAnnotations(read_only_hint=True)
@@ -70,5 +70,20 @@ def build_server(service: CatalogService) -> MCPServer:
     )
     def discover_skills(query: str, limit: int | None = None) -> list[SkillRef]:
         return service.discover(query, limit)
+
+    @server.tool(
+        name="list_skill_versions",
+        description=(
+            "List every published version of a skill, oldest first, with when it was "
+            "published, by whom, and its content hash.\n\n"
+            "Use this to show a skill's history, or to find an earlier version number to "
+            "pass to retrieve_skill. A version marked identical_to has the same content as "
+            "that earlier version.\n\n"
+            "If the skill does not exist, found=false and the message says so."
+        ),
+        annotations=READ_ONLY,
+    )
+    def list_skill_versions(name: str) -> VersionHistory:
+        return service.list_versions(name)
 
     return server

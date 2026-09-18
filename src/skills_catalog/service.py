@@ -1,7 +1,7 @@
 """Catalog behaviour. Knows nothing about MCP, HTTP, or how it was called."""
 
 from .hashing import bundle_hash
-from .models import FileMap, PublishResult, SkillBundle, SkillRef
+from .models import FileMap, PublishResult, SkillBundle, SkillRef, VersionHistory
 from .repository import IntegrityFailure, SkillNotFound, SqliteRepository
 from .search import clamp_limit, to_match_expression
 from .validation import ValidationError, validate_publish
@@ -75,3 +75,17 @@ class CatalogService:
         if expression is None:
             return []
         return self.repository.search(expression, clamp_limit(limit))
+
+    def list_versions(self, name: str) -> VersionHistory:
+        """A skill's history: every version ever published, oldest first.
+
+        Versions whose content hash matches an earlier one are marked rather than
+        merged. Re-publishing identical content does create a new version (FR-04 has
+        no carve-out for it, and de-duplication is out of scope per PRD §8), so the
+        marking is what keeps the history honest without suppressing anything.
+        """
+        try:
+            versions = self.repository.list_versions(name)
+        except SkillNotFound:
+            return VersionHistory(found=False, name=name, message=f"No skill named '{name}'.")
+        return VersionHistory(found=True, name=name, versions=versions)
