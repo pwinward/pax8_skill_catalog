@@ -71,14 +71,16 @@ dependencies.
 uv run pytest
 ```
 
-95 tests, 96% coverage. `docs/requirements.md` maps every PRD acceptance criterion to
+98 tests, 96% coverage. `docs/requirements.md` maps every PRD acceptance criterion to
 the test that proves it. Notable ones:
 
 - **Round-trip fidelity** against content designed to break naive handling: CRLF line
   endings, unicode, trailing whitespace, empty files, nested paths, and a supporting
   file that is itself YAML frontmatter.
-- **Two client sessions, one catalog** — the test that would fail if the catalog were
-  not actually shared. Every other test passes against a per-developer local store.
+- **Five end-to-end tests** against the catalog running as a separate process over
+  real HTTP: two client sessions sharing one catalog, the README quickstart run as a
+  sequence, and a skill outliving the process that stored it — the last would be the
+  only failure if the catalog quietly became a cache.
 - **Hostile search queries** — FTS5 reads quotes, hyphens, `AND`/`OR`/`NEAR` as syntax,
   and a developer's question contains all of them.
 - **Property-based round-tripping** — byte fidelity and "no query can raise" are
