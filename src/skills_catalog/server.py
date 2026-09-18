@@ -7,6 +7,7 @@ to call, so they state the result contract rather than just naming the operation
 from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 
+from .logging import logged
 from .models import FileMap, PublishResult, SkillBundle, SkillRef, VersionHistory
 from .service import CatalogService
 
@@ -39,7 +40,12 @@ def build_server(service: CatalogService) -> MCPServer:
         annotations=WRITES,
     )
     def publish_skill(files: FileMap, publisher: str | None = None) -> PublishResult:
-        return service.publish(files, publisher)
+        with logged("publish_skill", file_count=len(files or {})) as record:
+            result = service.publish(files, publisher)
+            record["outcome"] = "published" if result.published else "rejected"
+            record["skill"] = result.name
+            record["version"] = result.version
+            return result
 
     @server.tool(
         name="retrieve_skill",
@@ -54,7 +60,11 @@ def build_server(service: CatalogService) -> MCPServer:
         annotations=READ_ONLY,
     )
     def retrieve_skill(name: str, version: int | None = None) -> SkillBundle:
-        return service.retrieve(name, version)
+        with logged("retrieve_skill", skill=name) as record:
+            result = service.retrieve(name, version)
+            record["outcome"] = "found" if result.found else "not_found"
+            record["version"] = result.version
+            return result
 
     @server.tool(
         name="discover_skills",
@@ -69,7 +79,11 @@ def build_server(service: CatalogService) -> MCPServer:
         annotations=READ_ONLY,
     )
     def discover_skills(query: str, limit: int | None = None) -> list[SkillRef]:
-        return service.discover(query, limit)
+        with logged("discover_skills") as record:
+            results = service.discover(query, limit)
+            record["outcome"] = "matched" if results else "no_match"
+            record["result_count"] = len(results)
+            return results
 
     @server.tool(
         name="list_skill_versions",
@@ -84,6 +98,10 @@ def build_server(service: CatalogService) -> MCPServer:
         annotations=READ_ONLY,
     )
     def list_skill_versions(name: str) -> VersionHistory:
-        return service.list_versions(name)
+        with logged("list_skill_versions", skill=name) as record:
+            history = service.list_versions(name)
+            record["outcome"] = "found" if history.found else "not_found"
+            record["version_count"] = len(history.versions)
+            return history
 
     return server

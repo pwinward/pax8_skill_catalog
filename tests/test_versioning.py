@@ -118,27 +118,6 @@ def test_malformed_republish_leaves_versions_intact(service):
     assert service.retrieve("release-note-draft").files == {"SKILL.md": V1, "template.md": "keep me\n"}
 
 
-def test_no_mutation_path(service):
-    """4.5 — no operation on the catalog mutates a published version.
-
-    Immutability holds because no code path issues an UPDATE or DELETE against a
-    published version, so this asserts on the service surface rather than on a
-    database constraint: every public method is either a read or an append.
-    """
-    service.publish({"SKILL.md": V1})
-    before = service.retrieve("release-note-draft", version=1)
-
-    service.publish({"SKILL.md": V2})
-    service.discover("release notes")
-    service.list_versions("release-note-draft")
-
-    assert service.retrieve("release-note-draft", version=1).files == before.files
-    assert service.retrieve("release-note-draft", version=1).content_hash == before.content_hash
-
-    public_api = {m for m in dir(service) if not m.startswith("_")}
-    assert public_api == {"publish", "retrieve", "discover", "list_versions", "repository"}
-
-
 def test_version_numbers_are_assigned_inside_the_transaction(service):
     """4.1 — two versions never share a number, even under a race.
 

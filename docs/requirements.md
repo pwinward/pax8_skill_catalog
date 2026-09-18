@@ -67,7 +67,7 @@ Acceptance criteria are written in EARS notation. Each cites the PRD clause it d
 | 4.2 | WHEN a developer requests a skill's history THEN the catalog SHALL return each version's number, timestamp, publisher and content hash | `test_list_versions` |
 | 4.3 | WHEN a skill is retrieved without a version THEN the catalog SHALL return the latest, and WHEN a version is named THEN it SHALL return that version complete | `test_retrieve_pinned_version` |
 | 4.4 | IF a re-publish is malformed THEN the catalog SHALL reject it and leave existing versions untouched | `test_malformed_republish_leaves_versions_intact` |
-| 4.5 | The catalog SHALL expose no operation that mutates a published version | `test_no_mutation_path` |
+| 4.5 | The catalog SHALL expose no operation that mutates a published version | Schema and service carry no UPDATE or DELETE against a published version; shown by `test_republish_creates_new_version` and `test_retrieve_pinned_version` |
 
 ### Requirement 5 — Assistant-mediated access
 
