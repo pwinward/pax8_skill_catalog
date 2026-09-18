@@ -1,0 +1,23 @@
+name: tests
+
+# The README claims this runs on any operating system; it has only ever been run on
+# macOS. This is the only thing that makes that claim evidence rather than assertion.
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Run the test suite
+        run: uv run pytest -q
+
+      - name: Verify the README quickstart
+        run: uv run skills-catalog --db ci.db seed

@@ -45,15 +45,25 @@ def test_content_hash_is_stable_across_publish_and_retrieve(service):
     assert retrieved.content_hash == published.content_hash
 
 
-def test_tampered_storage_raises_rather_than_returning_wrong_content(service):
-    """3.2 — corruption is a fault, never a quiet success."""
+def test_tampered_storage_raises_rather_than_returning_wrong_content(service, stored):
+    """3.2 — altered bytes are caught by the per-file hash."""
     service.publish({"SKILL.md": MANIFEST})
 
-    with service.repository._connect() as conn:
-        conn.execute(
-            "UPDATE version_files SET content = ? WHERE path = 'SKILL.md'",
-            (b"tampered with after publication",),
-        )
+    stored.corrupt_file("SKILL.md", b"tampered with after publication")
 
     with pytest.raises(IntegrityFailure):
+        service.retrieve("fidelity-check")
+
+
+def test_missing_file_is_caught_by_the_bundle_hash(service, stored):
+    """3.2 — a file removed from a version leaves every remaining hash valid.
+
+    Only the bundle hash, which covers the sorted (path, hash) pairs, notices that
+    the set of files is no longer what was published.
+    """
+    service.publish({"SKILL.md": MANIFEST, "template.md": "## Release\n"})
+
+    stored.delete_file("template.md")
+
+    with pytest.raises(IntegrityFailure, match="bundle hash"):
         service.retrieve("fidelity-check")

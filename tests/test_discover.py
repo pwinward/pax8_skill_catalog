@@ -89,3 +89,34 @@ def test_limit_is_clamped(populated):
     """A caller cannot ask for an unbounded result set."""
     assert len(populated.discover("skill OR release OR kubernetes", limit=10_000)) <= 50
     assert len(populated.discover("release notes", limit=0)) <= 1
+
+
+def test_index_reflects_the_latest_version_not_every_version(populated):
+    """design §6.4 — the index is a projection of the latest version, replaced on publish.
+
+    If it were appended to, the old description would keep matching and a skill would
+    appear twice in results.
+    """
+    revised = RELEASE_NOTES.replace(
+        "Drafts release notes from a set of merged pull requests.",
+        "Assembles a changelog from merged pull requests.",
+    )
+    populated.publish({"SKILL.md": revised})
+
+    by_new_wording = populated.discover("changelog")
+
+    assert [s.name for s in by_new_wording] == ["release-note-draft"]
+    assert by_new_wording[0].description == "Assembles a changelog from merged pull requests."
+    # "Drafts" appeared only in the superseded description, so a match on it would mean
+    # the old row is still in the index. ("release" would still match via the name.)
+    assert populated.discover("drafts") == []
+
+
+def test_a_skill_appears_once_however_many_versions_it_has(populated):
+    for _ in range(3):
+        populated.publish({"SKILL.md": RELEASE_NOTES})
+
+    results = populated.discover("release notes")
+
+    assert [s.name for s in results] == ["release-note-draft"]
+    assert results[0].latest_version == 4

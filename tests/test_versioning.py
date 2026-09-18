@@ -127,7 +127,7 @@ def test_version_numbers_are_assigned_inside_the_transaction(service):
     service.publish({"SKILL.md": V1})
     manifest_row = (("release-note-draft", 1, "d", None, "now", "hash"),)
 
-    with service.repository._connect() as conn:
+    with service.repository._connect() as conn:  # noqa: SLF001 - asserts the constraint itself
         with pytest.raises(sqlite3.IntegrityError):
             conn.executemany(
                 "INSERT INTO versions"

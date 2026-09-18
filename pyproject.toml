@@ -9,7 +9,10 @@ dependencies = ["mcp>=1.2.0"]
 skills-catalog = "skills_catalog.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0"]
+dev = [
+    "hypothesis>=6.168.0",
+    "pytest>=8.0",
+]
 
 [build-system]
 requires = ["hatchling"]

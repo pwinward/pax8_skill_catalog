@@ -61,7 +61,13 @@ def parse_manifest(text: str) -> Manifest:
 
     front, body = match.group(1), match.group(2)
     fields: dict[str, str] = {}
-    for line in front.splitlines():
+    # Split on real newlines only. str.splitlines() also breaks on NEL, LINE SEPARATOR,
+    # PARAGRAPH SEPARATOR, vertical tab and form feed, which would let a value carrying
+    # one of those smuggle in a second field: a description reading
+    # "harmless<U+2028>name: other-skill" would parse as a different skill name than the
+    # one the author wrote, and with no authentication (PRD §8) that is enough to publish
+    # a new version of someone else's skill.
+    for line in re.split(r"\r?\n", front):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         kv = _KEY_VALUE.match(line.strip())

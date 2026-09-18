@@ -2,8 +2,6 @@
 
 import pytest
 
-from skills_catalog.repository import SqliteRepository
-
 MANIFEST = """---
 name: release-note-draft
 description: Drafts release notes from a set of merged PRs.
@@ -71,15 +69,11 @@ def test_publish_rejects_binary_content(service):
     assert result.field == "files"
 
 
-def test_rejected_publish_is_atomic(service, tmp_path):
+def test_rejected_publish_is_atomic(service, stored):
     """1.5 — a rejected publish leaves no trace: no skill, version, file or index row."""
     service.publish({"SKILL.md": MANIFEST, "../escape.md": "x"})
 
-    repository: SqliteRepository = service.repository
-    with repository._connect() as conn:
-        for table in ("skills", "versions", "version_files", "skills_fts"):
-            count = conn.execute(f"SELECT COUNT(*) AS n FROM {table}").fetchone()["n"]
-            assert count == 0, f"{table} should be empty after a rejected publish"
+    assert stored.is_empty(), stored.row_counts()
 
 
 @pytest.mark.parametrize(
@@ -102,3 +96,29 @@ def test_frontmatter_quotes_strip_only_as_a_matched_pair(service, raw, expected)
     service.publish({"SKILL.md": f"---\nname: quoting\ndescription: {raw}\n---\n\nBody.\n"})
 
     assert service.discover("quoting")[0].description == expected
+
+
+@pytest.mark.parametrize(
+    "separator",
+    [" ", " ", "\x85", "\v", "\f"],
+    ids=["line-sep", "paragraph-sep", "next-line", "vertical-tab", "form-feed"],
+)
+def test_a_description_cannot_smuggle_in_another_field(service, separator):
+    """Frontmatter fields are delimited by newlines, and only by newlines.
+
+    str.splitlines() also breaks on these five characters. Parsing with it let a
+    description carrying one of them introduce a second key: an author publishing
+    'name: innocent' with a crafted description would have the skill stored under a
+    different name — and with no authentication (PRD §8), that is enough to publish a
+    new version of someone else's skill.
+    """
+    description = f"harmless{separator}name: hijacked"
+
+    result = service.publish(
+        {"SKILL.md": f"---\nname: innocent\ndescription: {description}\n---\n\nBody.\n"}
+    )
+
+    assert result.published is True
+    assert result.name == "innocent"
+    assert service.retrieve("hijacked").found is False
+    assert service.discover("innocent")[0].description == description

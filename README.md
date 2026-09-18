@@ -71,8 +71,8 @@ dependencies.
 uv run pytest
 ```
 
-58 tests. `docs/requirements.md` maps every PRD acceptance criterion to the test that
-proves it. Notable ones:
+95 tests, 96% coverage. `docs/requirements.md` maps every PRD acceptance criterion to
+the test that proves it. Notable ones:
 
 - **Round-trip fidelity** against content designed to break naive handling: CRLF line
   endings, unicode, trailing whitespace, empty files, nested paths, and a supporting
@@ -81,6 +81,9 @@ proves it. Notable ones:
   not actually shared. Every other test passes against a per-developer local store.
 - **Hostile search queries** — FTS5 reads quotes, hyphens, `AND`/`OR`/`NEAR` as syntax,
   and a developer's question contains all of them.
+- **Property-based round-tripping** — byte fidelity and "no query can raise" are
+  universal claims, so `hypothesis` generates against them rather than guessing at
+  examples. It found a field-injection bug the hand-written cases missed.
 
 ## Measured
 
@@ -99,8 +102,8 @@ duration and the figures are reported rather than asserted in a flaky timing tes
   for "changelog". Semantic search is the top-ranked Phase 2 item.
 - **No authentication** (PRD §8), so the namespace is flat and any caller may publish a
   new version of any skill. The publisher field is recorded but unverified.
-- **Untested on Windows and Linux.** Written to be portable — `pathlib`, no hardcoded
-  paths, uv-pinned Python — but only run on macOS.
+- **Verified on macOS locally**; CI runs the suite and the quickstart on Ubuntu,
+  macOS and Windows.
 
 ## Documents
 
