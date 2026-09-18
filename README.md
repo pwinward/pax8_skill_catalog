@@ -90,7 +90,7 @@ the test that proves it. Notable ones:
 
 ## Measured
 
-Ten tool calls during the `DEMO.md` run: median 0.68 ms, slowest 1.39 ms. PRD §7 asks
+Twelve tool calls during the `DEMO.md` run: median 0.63 ms, slowest 0.95 ms. PRD §7 asks
 for interactive responsiveness without prescribing a number, so each call logs its
 duration and the figures are reported rather than asserted in a flaky timing test.
 
