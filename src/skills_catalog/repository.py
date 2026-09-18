@@ -164,6 +164,15 @@ class SqliteRepository:
             files[row["path"]] = content
         return dict(meta), files
 
+    def version_meta(self, name: str, version: int) -> dict:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM versions WHERE skill_name = ? AND version = ?", (name, version)
+            ).fetchone()
+        if row is None:
+            raise SkillNotFound(f"{name} version {version}")
+        return dict(row)
+
     def list_versions(self, name: str) -> list[VersionInfo]:
         with self._connect() as conn:
             rows = conn.execute(

@@ -2,7 +2,7 @@
 
 from .hashing import bundle_hash
 from .models import FileMap, PublishResult, SkillBundle
-from .repository import SkillNotFound, SqliteRepository
+from .repository import IntegrityFailure, SkillNotFound, SqliteRepository
 from .validation import ValidationError, validate_publish
 
 
@@ -47,7 +47,17 @@ class CatalogService:
                 )
             return SkillBundle(found=False, name=name, message=f"No skill named '{name}'.")
 
-        stored_hash = bundle_hash(files)
+        # The per-file hashes were checked on the way out of the repository; this
+        # checks the bundle as a whole, so a missing or renamed file is caught too.
+        # A mismatch is corruption, not a domain outcome: it raises rather than
+        # returning content already known to be wrong (PRD §7).
+        row = self.repository.version_meta(name, resolved)
+        recomputed = bundle_hash(files)
+        if recomputed != row["content_hash"]:
+            raise IntegrityFailure(
+                f"{name} v{resolved}: bundle hash {recomputed} does not match "
+                f"the hash recorded at publish ({row['content_hash']})"
+            )
         return SkillBundle(
-            found=True, name=name, version=resolved, content_hash=stored_hash, files=files
+            found=True, name=name, version=resolved, content_hash=recomputed, files=files
         )
