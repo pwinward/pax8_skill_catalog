@@ -26,12 +26,32 @@ claude mcp add --transport http skills-catalog http://127.0.0.1:8000/mcp
 Then ask it: *"is there a skill for writing release notes?"*, and *"get me the
 release-note-draft skill."*
 
-Already on Python 3.10+ and would rather not use uv:
+Prefer your own Python? It must be 3.10 or newer — check with `python -V` first, as
+the `python3` shipped with macOS is 3.9 and fails here with an unrelated-looking
+setuptools error. The test dependencies are a dependency group, which `pip install -e .`
+does not pull in, so name them:
 
 ```bash
 python -m venv .venv && . .venv/bin/activate   # .venv\Scripts\activate on Windows
-pip install -e . && pytest
+pip install -e . pytest hypothesis && pytest
 skills-catalog seed && skills-catalog serve
+```
+
+### Where the catalog lives
+
+The catalog is one SQLite file, `catalog.db`, created in the directory you run from.
+Nothing else is written, and there is no state anywhere else.
+
+```bash
+uv run skills-catalog --db /tmp/scratch.db seed     # put it somewhere else
+uv run skills-catalog --db /tmp/scratch.db serve    # --db goes before the subcommand
+rm catalog.db                                       # start over from empty
+```
+
+`serve` listens on `127.0.0.1:8000` by default; `--host` and `--port` change that:
+
+```bash
+uv run skills-catalog serve --host 127.0.0.1 --port 9000
 ```
 
 ## What it does
